@@ -140,6 +140,8 @@
         let basketHeight = canvas.height * 0.05;
         const objectSize = canvas.width * 0.05;
         const gameTime = 30;
+        const baseFallSpeed = canvas.height * 0.01 / 3; // 基礎掉落速度（可調整，越大越快）
+        const speedVariation = canvas.height * 0.005; // 速度隨機變化的範圍（可調整）
 
         // 遊戲狀態
         let basketX = canvas.width / 2 - basketWidth / 2;
@@ -177,7 +179,7 @@
             constructor() {
                 this.x = Math.random() * (canvas.width - objectSize);
                 this.y = -objectSize;
-                this.speed = canvas.height * 0.01 + Math.random() * (canvas.height * 0.01) / 2;
+                this.speed = baseFallSpeed + (Math.random() * speedVariation); // 速度 = 基礎速度 + 隨機變化
             }
 
             draw() {
