@@ -209,14 +209,12 @@
             }
 
             // 可選：確保每隔一定時間至少生成一個（取消註解以啟用）
-            /*
             timeSinceLastSpawn += deltaTime;
             if (timeSinceLastSpawn >= 2.0 && !gameOver) { // 每 2 秒至少生成一個
                 objects.push(new FallingObject());
                 timeSinceLastSpawn = 0;
                 console.log("因間隔過長，強制生成了一個掉落物！");
             }
-            */
         }
 
         // 更新計時器（基於實際時間）
