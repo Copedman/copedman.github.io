@@ -12,12 +12,12 @@
             background: #f0f0f0;
         }
         #gameContainer {
-            width: 1080px;
-            height: 1920px;
             position: relative;
             overflow: hidden;
         }
         #gameCanvas {
+            width: 100%;
+            height: 100%;
             border: 1px solid #000;
         }
         #gameOver {
@@ -50,7 +50,7 @@
 </head>
 <body>
     <div id="gameContainer">
-        <canvas id="gameCanvas" width="1080" height="1920"></canvas>
+        <canvas id="gameCanvas"></canvas>
         <div id="gameOver">
             <h1>遊戲結束</h1>
             <p>您的分數: <span id="finalScore">0</span></p>
@@ -65,18 +65,80 @@
         const finalScoreElement = document.getElementById('finalScore');
         const resetButton = document.getElementById('resetButton');
 
-        // 載入圖片
-        const backgroundImg = new Image();
-        backgroundImg.src = 'background.png';
-        const basketImg = new Image();
-        basketImg.src = 'basket.png';
-        const objectImg = new Image();
-        objectImg.src = 'object.png';
+        // 動態調整畫布尺寸
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            const aspectRatio = 9 / 16; // 保持 9:16 比例
+            const maxWidth = window.innerWidth;
+            const maxHeight = window.innerHeight;
+            let newWidth = maxWidth;
+            let newHeight = maxWidth / aspectRatio;
 
-        // 遊戲參數
-        const basketWidth = 240;  // 放大容器尺寸
-        const basketHeight = 60;
-        const objectSize = 60;    // 放大掉落物尺寸
+            if (newHeight > maxHeight) {
+                newHeight = maxHeight;
+                newWidth = maxHeight * aspectRatio;
+            }
+
+            container.style.width = newWidth + 'px';
+            container.style.height = newHeight + 'px';
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas(); // 初始化畫布尺寸
+
+        // 載入圖片（如果圖片不存在則使用簡單圖形）
+        let backgroundImg, basketImg, objectImg;
+        let imagesLoaded = 0;
+        const totalImages = 3;
+        let useFallbackGraphics = false;
+
+        try {
+            backgroundImg = new Image();
+            backgroundImg.src = 'background.png';
+            basketImg = new Image();
+            basketImg.src = 'basket.png';
+            objectImg = new Image();
+            objectImg.src = 'object.png';
+
+            backgroundImg.onerror = () => {
+                console.warn("無法載入背景圖片，將使用簡單背景");
+                useFallbackGraphics = true;
+                imageLoaded();
+            };
+            basketImg.onerror = () => {
+                console.warn("無法載入容器圖片，將使用簡單矩形");
+                useFallbackGraphics = true;
+                imageLoaded();
+            };
+            objectImg.onerror = () => {
+                console.warn("無法載入掉落物圖片，將使用簡單矩形");
+                useFallbackGraphics = true;
+                imageLoaded();
+            };
+
+            backgroundImg.onload = imageLoaded;
+            basketImg.onload = imageLoaded;
+            objectImg.onload = imageLoaded;
+        } catch (e) {
+            console.warn("圖片載入失敗，將使用簡單圖形作為備用");
+            useFallbackGraphics = true;
+            imagesLoaded = totalImages;
+            gameLoop();
+        }
+
+        function imageLoaded() {
+            imagesLoaded++;
+            if (imagesLoaded === totalImages || useFallbackGraphics) {
+                gameLoop();
+            }
+        }
+
+        // 遊戲參數（根據畫布尺寸動態調整）
+        let basketWidth = canvas.width * 0.2;
+        let basketHeight = canvas.height * 0.05;
+        const objectSize = canvas.width * 0.05;
         const gameTime = 30;
 
         // 遊戲狀態
@@ -86,26 +148,26 @@
         let timeLeft = gameTime;
         let gameOver = false;
 
-        // 等待所有圖片載入完成
-        let imagesLoaded = 0;
-        const totalImages = 3;
-
-        function imageLoaded() {
-            imagesLoaded++;
-            if (imagesLoaded === totalImages) {
-                gameLoop();
-            }
-        }
-
-        backgroundImg.onload = imageLoaded;
-        basketImg.onload = imageLoaded;
-        objectImg.onload = imageLoaded;
-
-        // 控制容器
+        // 滑鼠控制（支援桌面端）
         canvas.addEventListener('mousemove', (e) => {
             if (!gameOver) {
                 const rect = canvas.getBoundingClientRect();
                 basketX = e.clientX - rect.left - basketWidth / 2;
+                basketX = Math.max(0, Math.min(canvas.width - basketWidth, basketX));
+            }
+        });
+
+        // 觸控控制（支援手機端）
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!gameOver) {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                basketX = touch.clientX - rect.left - basketWidth / 2;
                 basketX = Math.max(0, Math.min(canvas.width - basketWidth, basketX));
             }
         });
@@ -115,11 +177,16 @@
             constructor() {
                 this.x = Math.random() * (canvas.width - objectSize);
                 this.y = -objectSize;
-                this.speed = 6 + Math.random() * 6; // 加快掉落速度以匹配新解析度
+                this.speed = canvas.height * 0.01 + Math.random() * (canvas.height * 0.01);
             }
 
             draw() {
-                ctx.drawImage(objectImg, this.x, this.y, objectSize, objectSize);
+                if (useFallbackGraphics || !objectImg.complete) {
+                    ctx.fillStyle = 'red';
+                    ctx.fillRect(this.x, this.y, objectSize, objectSize);
+                } else {
+                    ctx.drawImage(objectImg, this.x, this.y, objectSize, objectSize);
+                }
             }
 
             update() {
@@ -136,7 +203,7 @@
 
         // 更新計時器
         function updateTimer() {
-            timeLeft -= 1/60;
+            timeLeft -= 1 / 60;
             if (timeLeft <= 0) {
                 gameOver = true;
                 showGameOver();
@@ -165,10 +232,20 @@
         function gameLoop() {
             if (!gameOver) {
                 // 繪製背景
-                ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+                if (useFallbackGraphics || !backgroundImg.complete) {
+                    ctx.fillStyle = '#87CEEB';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                } else {
+                    ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+                }
 
                 // 繪製容器
-                ctx.drawImage(basketImg, basketX, canvas.height - basketHeight, basketWidth, basketHeight);
+                if (useFallbackGraphics || !basketImg.complete) {
+                    ctx.fillStyle = 'green';
+                    ctx.fillRect(basketX, canvas.height - basketHeight, basketWidth, basketHeight);
+                } else {
+                    ctx.drawImage(basketImg, basketX, canvas.height - basketHeight, basketWidth, basketHeight);
+                }
 
                 // 更新和繪製掉落物件
                 spawnObject();
@@ -178,9 +255,11 @@
                     obj.draw();
 
                     // 檢測碰撞
-                    if (obj.y + objectSize > canvas.height - basketHeight &&
+                    if (
+                        obj.y + objectSize > canvas.height - basketHeight &&
                         obj.x + objectSize > basketX &&
-                        obj.x < basketX + basketWidth) {
+                        obj.x < basketX + basketWidth
+                    ) {
                         score += 1;
                         objects.splice(index, 1);
                     }
@@ -188,9 +267,9 @@
 
                 // 顯示分數和時間
                 ctx.fillStyle = 'white';
-                ctx.font = '60px Arial'; // 放大字體
-                ctx.fillText(`分數: ${score}`, 30, 90);
-                ctx.fillText(`時間: ${Math.ceil(timeLeft)}`, canvas.width - 300, 90);
+                ctx.font = `${canvas.width * 0.05}px Arial`;
+                ctx.fillText(`分數: ${score}`, canvas.width * 0.03, canvas.height * 0.05);
+                ctx.fillText(`時間: ${Math.ceil(timeLeft)}`, canvas.width * 0.7, canvas.height * 0.05);
 
                 updateTimer();
             }
