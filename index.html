@@ -140,8 +140,9 @@
         let basketHeight = canvas.height * 0.05;
         const objectSize = canvas.width * 0.05;
         const gameTime = 30;
-        const baseFallSpeed = canvas.height * 0.01 / 3; // 基礎掉落速度（可調整，越大越快）
-        const speedVariation = canvas.height * 0.005; // 速度隨機變化的範圍（可調整）
+        const baseFallSpeed = 500; // 基礎掉落速度（像素/秒，可調整）
+        const speedVariation = 200; // 速度隨機變化的範圍（像素/秒，可調整）
+        const spawnRatePerSecond = 0.03; // 每秒生成物件的機率
 
         // 遊戲狀態
         let basketX = canvas.width / 2 - basketWidth / 2;
@@ -149,6 +150,7 @@
         let score = 0;
         let timeLeft = gameTime;
         let gameOver = false;
+        let lastTime = performance.now(); // 用於計算時間差
 
         // 滑鼠控制（支援桌面端）
         canvas.addEventListener('mousemove', (e) => {
@@ -179,7 +181,7 @@
             constructor() {
                 this.x = Math.random() * (canvas.width - objectSize);
                 this.y = -objectSize;
-                this.speed = baseFallSpeed + (Math.random() * speedVariation); // 速度 = 基礎速度 + 隨機變化
+                this.speed = baseFallSpeed + (Math.random() * speedVariation); // 速度單位：像素/秒
             }
 
             draw() {
@@ -191,21 +193,21 @@
                 }
             }
 
-            update() {
-                this.y += this.speed;
+            update(deltaTime) {
+                this.y += this.speed * deltaTime; // 根據時間差更新位置
             }
         }
 
-        // 生成新物件
-        function spawnObject() {
-            if (Math.random() < 0.03 && !gameOver) {
+        // 生成新物件（基於時間）
+        function spawnObject(deltaTime) {
+            if (Math.random() < spawnRatePerSecond * deltaTime && !gameOver) {
                 objects.push(new FallingObject());
             }
         }
 
-        // 更新計時器
-        function updateTimer() {
-            timeLeft -= 1 / 60;
+        // 更新計時器（基於實際時間）
+        function updateTimer(deltaTime) {
+            timeLeft -= deltaTime;
             if (timeLeft <= 0) {
                 gameOver = true;
                 showGameOver();
@@ -226,12 +228,17 @@
             score = 0;
             timeLeft = gameTime;
             gameOver = false;
+            lastTime = performance.now(); // 重置時間
         }
 
         resetButton.addEventListener('click', resetGame);
 
         // 主遊戲循環
         function gameLoop() {
+            const currentTime = performance.now();
+            const deltaTime = (currentTime - lastTime) / 1000; // 時間差（秒）
+            lastTime = currentTime;
+
             if (!gameOver) {
                 // 繪製背景
                 if (useFallbackGraphics || !backgroundImg.complete) {
@@ -250,10 +257,10 @@
                 }
 
                 // 更新和繪製掉落物件
-                spawnObject();
+                spawnObject(deltaTime);
                 objects = objects.filter(obj => obj.y < canvas.height);
                 objects.forEach((obj, index) => {
-                    obj.update();
+                    obj.update(deltaTime);
                     obj.draw();
 
                     // 檢測碰撞
@@ -273,7 +280,7 @@
                 ctx.fillText(`分數: ${score}`, canvas.width * 0.03, canvas.height * 0.05);
                 ctx.fillText(`時間: ${Math.ceil(timeLeft)}`, canvas.width * 0.7, canvas.height * 0.05);
 
-                updateTimer();
+                updateTimer(deltaTime);
             }
             requestAnimationFrame(gameLoop);
         }
