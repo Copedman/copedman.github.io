@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>接物遊戲</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f0f0f0;
+        }
+        #gameContainer {
+            width: 1080px;
+            height: 1920px;
+            position: relative;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            border: 1px solid #000;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+            font-family: Arial, sans-serif;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 40px;
+            border-radius: 20px;
+        }
+        #resetButton {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 24px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+        }
+        #resetButton:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1080" height="1920"></canvas>
+        <div id="gameOver">
+            <h1>遊戲結束</h1>
+            <p>您的分數: <span id="finalScore">0</span></p>
+            <button id="resetButton">重新開始</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+        const resetButton = document.getElementById('resetButton');
+
+        // 載入圖片
+        const backgroundImg = new Image();
+        backgroundImg.src = 'background.png';
+        const basketImg = new Image();
+        basketImg.src = 'basket.png';
+        const objectImg = new Image();
+        objectImg.src = 'object.png';
+
+        // 遊戲參數
+        const basketWidth = 240;  // 放大容器尺寸
+        const basketHeight = 60;
+        const objectSize = 60;    // 放大掉落物尺寸
+        const gameTime = 30;
+
+        // 遊戲狀態
+        let basketX = canvas.width / 2 - basketWidth / 2;
+        let objects = [];
+        let score = 0;
+        let timeLeft = gameTime;
+        let gameOver = false;
+
+        // 等待所有圖片載入完成
+        let imagesLoaded = 0;
+        const totalImages = 3;
+
+        function imageLoaded() {
+            imagesLoaded++;
+            if (imagesLoaded === totalImages) {
+                gameLoop();
+            }
+        }
+
+        backgroundImg.onload = imageLoaded;
+        basketImg.onload = imageLoaded;
+        objectImg.onload = imageLoaded;
+
+        // 控制容器
+        canvas.addEventListener('mousemove', (e) => {
+            if (!gameOver) {
+                const rect = canvas.getBoundingClientRect();
+                basketX = e.clientX - rect.left - basketWidth / 2;
+                basketX = Math.max(0, Math.min(canvas.width - basketWidth, basketX));
+            }
+        });
+
+        // 掉落物件類
+        class FallingObject {
+            constructor() {
+                this.x = Math.random() * (canvas.width - objectSize);
+                this.y = -objectSize;
+                this.speed = 6 + Math.random() * 6; // 加快掉落速度以匹配新解析度
+            }
+
+            draw() {
+                ctx.drawImage(objectImg, this.x, this.y, objectSize, objectSize);
+            }
+
+            update() {
+                this.y += this.speed;
+            }
+        }
+
+        // 生成新物件
+        function spawnObject() {
+            if (Math.random() < 0.03 && !gameOver) {
+                objects.push(new FallingObject());
+            }
+        }
+
+        // 更新計時器
+        function updateTimer() {
+            timeLeft -= 1/60;
+            if (timeLeft <= 0) {
+                gameOver = true;
+                showGameOver();
+            }
+        }
+
+        // 顯示遊戲結束畫面
+        function showGameOver() {
+            gameOverScreen.style.display = 'block';
+            finalScoreElement.textContent = score;
+        }
+
+        // 重置遊戲
+        function resetGame() {
+            gameOverScreen.style.display = 'none';
+            basketX = canvas.width / 2 - basketWidth / 2;
+            objects = [];
+            score = 0;
+            timeLeft = gameTime;
+            gameOver = false;
+        }
+
+        resetButton.addEventListener('click', resetGame);
+
+        // 主遊戲循環
+        function gameLoop() {
+            if (!gameOver) {
+                // 繪製背景
+                ctx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+
+                // 繪製容器
+                ctx.drawImage(basketImg, basketX, canvas.height - basketHeight, basketWidth, basketHeight);
+
+                // 更新和繪製掉落物件
+                spawnObject();
+                objects = objects.filter(obj => obj.y < canvas.height);
+                objects.forEach((obj, index) => {
+                    obj.update();
+                    obj.draw();
+
+                    // 檢測碰撞
+                    if (obj.y + objectSize > canvas.height - basketHeight &&
+                        obj.x + objectSize > basketX &&
+                        obj.x < basketX + basketWidth) {
+                        score += 1;
+                        objects.splice(index, 1);
+                    }
+                });
+
+                // 顯示分數和時間
+                ctx.fillStyle = 'white';
+                ctx.font = '60px Arial'; // 放大字體
+                ctx.fillText(`分數: ${score}`, 30, 90);
+                ctx.fillText(`時間: ${Math.ceil(timeLeft)}`, canvas.width - 300, 90);
+
+                updateTimer();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
