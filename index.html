@@ -142,7 +142,7 @@
         const gameTime = 30;
         const baseFallSpeed = 300; // 基礎掉落速度（像素/秒，可調整）
         const speedVariation = 100; // 速度隨機變化的範圍（像素/秒，可調整）
-        const spawnRatePerSecond = 0.01; // 每秒生成物件的機率
+        const spawnRatePerSecond = 1.0; // 每秒生成物件的機率（調整為 1.0，約每秒生成 1 個）
 
         // 遊戲狀態
         let basketX = canvas.width / 2 - basketWidth / 2;
@@ -151,6 +151,7 @@
         let timeLeft = gameTime;
         let gameOver = false;
         let lastTime = performance.now(); // 用於計算時間差
+        let timeSinceLastSpawn = 0; // 用於追蹤自上次生成以來的時間（可選）
 
         // 滑鼠控制（支援桌面端）
         canvas.addEventListener('mousemove', (e) => {
@@ -200,9 +201,22 @@
 
         // 生成新物件（基於時間）
         function spawnObject(deltaTime) {
+            // 隨機生成
             if (Math.random() < spawnRatePerSecond * deltaTime && !gameOver) {
                 objects.push(new FallingObject());
+                timeSinceLastSpawn = 0; // 重置計時器
+                console.log("生成了一個掉落物！當前掉落物數量：" + objects.length);
             }
+
+            // 可選：確保每隔一定時間至少生成一個（取消註解以啟用）
+            /*
+            timeSinceLastSpawn += deltaTime;
+            if (timeSinceLastSpawn >= 2.0 && !gameOver) { // 每 2 秒至少生成一個
+                objects.push(new FallingObject());
+                timeSinceLastSpawn = 0;
+                console.log("因間隔過長，強制生成了一個掉落物！");
+            }
+            */
         }
 
         // 更新計時器（基於實際時間）
@@ -229,6 +243,7 @@
             timeLeft = gameTime;
             gameOver = false;
             lastTime = performance.now(); // 重置時間
+            timeSinceLastSpawn = 0; // 重置生成計時器
         }
 
         resetButton.addEventListener('click', resetGame);
